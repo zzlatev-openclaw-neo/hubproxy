@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"hubproxy/internal/storage"
 
@@ -223,19 +224,27 @@ func (f *WebhookForwarder) EnqueueProcessEvents() {
 }
 
 func (f *WebhookForwarder) StartForwarder(ctx context.Context) {
+	// Create ticker for periodic polling
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
 	go func() {
+		// Initial process on startup
+		if err := f.ProcessEvents(ctx); err != nil {
+			f.logger.Error("failed to process initial webhook events", "error", err)
+		}
+
 		for {
 			select {
 			case <-ctx.Done():
 				f.logger.Debug("stopped webhook forwarder")
 				return
-			case <-f.queue:
+			case <-ticker.C:
+				// Poll for unforwarded events every 10 seconds
 				if err := f.ProcessEvents(ctx); err != nil {
 					f.logger.Error("failed to process webhook events", "error", err)
 				}
 			}
 		}
 	}()
-
-	f.EnqueueProcessEvents()
 }
