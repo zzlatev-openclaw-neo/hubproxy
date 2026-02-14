@@ -36,6 +36,7 @@ type WebhookForwarder struct {
 	metricsCollector *storage.DBMetricsCollector
 	httpClient       *http.Client
 	targetURL        string
+	forwardHeaders   map[string]string
 	logger           *slog.Logger
 	queue            chan struct{}
 }
@@ -45,6 +46,7 @@ type WebhookForwarderOptions struct {
 	MetricsCollector *storage.DBMetricsCollector
 	HTTPClient       *http.Client
 	TargetURL        string
+	ForwardHeaders   string
 	Logger           *slog.Logger
 }
 
@@ -78,11 +80,30 @@ func NewWebhookForwarder(opts WebhookForwarderOptions) *WebhookForwarder {
 		httpClient = &http.Client{}
 	}
 
+	// Parse forward headers (format: "Header:Value,Header2:Value2")
+	forwardHeaders := make(map[string]string)
+	if opts.ForwardHeaders != "" {
+		for _, header := range strings.Split(opts.ForwardHeaders, ",") {
+			header = strings.TrimSpace(header)
+			if header == "" {
+				continue
+			}
+			parts := strings.SplitN(header, ":", 2)
+			if len(parts) == 2 {
+				forwardHeaders[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+			}
+		}
+		if len(forwardHeaders) > 0 {
+			opts.Logger.Info("configured custom forward headers", "count", len(forwardHeaders))
+		}
+	}
+
 	return &WebhookForwarder{
 		targetURL:        opts.TargetURL,
 		httpClient:       httpClient,
 		storage:          opts.Storage,
 		metricsCollector: opts.MetricsCollector,
+		forwardHeaders:   forwardHeaders,
 		logger:           opts.Logger,
 		queue:            make(chan struct{}, 1), // Buffer size 1 to allow one pending job
 	}
@@ -121,6 +142,11 @@ func (f *WebhookForwarder) forwardEvent(ctx context.Context, event *storage.Even
 		for _, value := range values {
 			req.Header.Add(name, value)
 		}
+	}
+
+	// Add custom forward headers
+	for name, value := range f.forwardHeaders {
+		req.Header.Set(name, value)
 	}
 
 	if req.Header.Get("Content-Type") != "application/json" {

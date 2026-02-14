@@ -96,6 +96,7 @@ and your target services.`,
 	flags.String("ts-authkey", "", "Tailscale auth key for tsnet")
 	flags.String("ts-hostname", "hubproxy", "Tailscale hostname (will be <hostname>.<tailnet>.ts.net)")
 	flags.String("db", "sqlite::memory:", "Database URI (e.g., sqlite:hubproxy.db, mysql://user:pass@host/db, postgres://user:pass@host/db)")
+	flags.String("forward-headers", "", "Additional headers to add when forwarding (format: Header:Value,Header2:Value2)")
 	flags.Duration("metrics-interval", 0*time.Minute, "Interval at which to gather database metrics")
 	flags.Bool("test-mode", false, "Skip server startup for testing")
 
@@ -219,6 +220,7 @@ func run() error {
 			Storage:          store,
 			MetricsCollector: metricsCollector,
 			Logger:           logger,
+			ForwardHeaders:   viper.GetString("forward-headers"),
 		})
 		go webhookForwarder.StartForwarder(ctx)
 	}
