@@ -3,6 +3,7 @@ package api_test
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -62,7 +63,7 @@ func TestAPIHandler(t *testing.T) {
 	}
 
 	// Create API handler
-	logger := slog.New(slog.NewJSONHandler(nil, nil))
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 	handler := api.NewHandler(store, logger)
 
 	t.Run("List Events", func(t *testing.T) {

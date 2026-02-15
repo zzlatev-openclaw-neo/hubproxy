@@ -3,6 +3,7 @@ package webhook
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -138,7 +139,7 @@ func TestStartForwarder_TickerFiresMultipleTimes(t *testing.T) {
 	defer ts.Close()
 
 	// Create mock metrics collector
-	logger := slog.New(slog.NewTextHandler(nil, nil))
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	metricsCollector := storage.NewDBMetricsCollector(mockStore, logger)
 
 	// Create forwarder with short poll interval for testing (100ms)
@@ -260,7 +261,7 @@ func TestStartForwarder_TickerInterval(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	logger := slog.New(slog.NewTextHandler(nil, nil))
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	metricsCollector := storage.NewDBMetricsCollector(mockStore, logger)
 
 	// Use a 50ms interval for faster testing
@@ -335,7 +336,7 @@ func TestStartForwarder_DefaultInterval(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	logger := slog.New(slog.NewTextHandler(nil, nil))
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	metricsCollector := storage.NewDBMetricsCollector(mockStore, logger)
 
 	// Create forwarder WITHOUT specifying PollInterval
@@ -363,7 +364,7 @@ func TestStartForwarder_ContextCancellation(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	logger := slog.New(slog.NewTextHandler(nil, nil))
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	metricsCollector := storage.NewDBMetricsCollector(mockStore, logger)
 
 	forwarder := NewWebhookForwarder(WebhookForwarderOptions{
