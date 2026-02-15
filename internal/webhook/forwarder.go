@@ -224,11 +224,11 @@ func (f *WebhookForwarder) EnqueueProcessEvents() {
 }
 
 func (f *WebhookForwarder) StartForwarder(ctx context.Context) {
-	// Create ticker for periodic polling
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
-
 	go func() {
+		// Create ticker for periodic polling (inside goroutine to prevent early stopping)
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+
 		// Initial process on startup
 		if err := f.ProcessEvents(ctx); err != nil {
 			f.logger.Error("failed to process initial webhook events", "error", err)
