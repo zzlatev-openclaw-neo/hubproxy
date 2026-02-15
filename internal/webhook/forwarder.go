@@ -215,7 +215,10 @@ func (f *WebhookForwarder) ProcessEvents(ctx context.Context) error {
 		f.forwardEvent(ctx, event)
 	}
 
-	f.metricsCollector.EnqueueGatherMetrics(ctx)
+	// Safely enqueue metrics (may be nil in tests)
+	if f.metricsCollector != nil {
+		f.metricsCollector.EnqueueGatherMetrics(ctx)
+	}
 
 	return nil
 }

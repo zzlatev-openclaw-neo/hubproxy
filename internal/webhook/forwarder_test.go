@@ -64,7 +64,7 @@ func (m *mockStorage) ListEvents(ctx context.Context, opts storage.QueryOptions)
 	m.listEventsCalls++
 	m.listEventsCallTimes = append(m.listEventsCallTimes, time.Now())
 
-	var result []*storage.Event
+	result := make([]*storage.Event, 0)
 	for _, e := range m.events {
 		if opts.OnlyNonForwarded && e.ForwardedAt != nil {
 			continue
