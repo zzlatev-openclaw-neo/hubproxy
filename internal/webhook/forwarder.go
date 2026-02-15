@@ -40,7 +40,11 @@ type WebhookForwarder struct {
 	forwardHeaders   map[string]string
 	logger           *slog.Logger
 	queue            chan struct{}
+	pollInterval     time.Duration
 }
+
+// DefaultPollInterval is the default interval for periodic polling
+const DefaultPollInterval = 10 * time.Second
 
 type WebhookForwarderOptions struct {
 	Storage          storage.Storage
@@ -49,6 +53,7 @@ type WebhookForwarderOptions struct {
 	TargetURL        string
 	ForwardHeaders   string
 	Logger           *slog.Logger
+	PollInterval     time.Duration // Interval for periodic polling (default: 10s)
 }
 
 func NewWebhookForwarder(opts WebhookForwarderOptions) *WebhookForwarder {
@@ -107,6 +112,7 @@ func NewWebhookForwarder(opts WebhookForwarderOptions) *WebhookForwarder {
 		forwardHeaders:   forwardHeaders,
 		logger:           opts.Logger,
 		queue:            make(chan struct{}, 1), // Buffer size 1 to allow one pending job
+		pollInterval:     opts.PollInterval,
 	}
 }
 
@@ -209,7 +215,10 @@ func (f *WebhookForwarder) ProcessEvents(ctx context.Context) error {
 		f.forwardEvent(ctx, event)
 	}
 
-	f.metricsCollector.EnqueueGatherMetrics(ctx)
+	// Safely enqueue metrics (may be nil in tests)
+	if f.metricsCollector != nil {
+		f.metricsCollector.EnqueueGatherMetrics(ctx)
+	}
 
 	return nil
 }
@@ -224,11 +233,17 @@ func (f *WebhookForwarder) EnqueueProcessEvents() {
 }
 
 func (f *WebhookForwarder) StartForwarder(ctx context.Context) {
-	// Create ticker for periodic polling
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
-
 	go func() {
+		// Use configured poll interval or default
+		interval := f.pollInterval
+		if interval <= 0 {
+			interval = DefaultPollInterval
+		}
+
+		// Create ticker for periodic polling (inside goroutine to prevent early stopping)
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
 		// Initial process on startup
 		if err := f.ProcessEvents(ctx); err != nil {
 			f.logger.Error("failed to process initial webhook events", "error", err)
